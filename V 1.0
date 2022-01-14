@@ -1,0 +1,53 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Going4Great
+
+//@version=5
+indicator(title='SPY Monthly EMA % Alert/Tracker', shorttitle='SPY Monthly 10 EMA Alert/Tracker', overlay=true, precision=3)
+
+Pcnt = input.float(title="Alert Percentage Threshold (%)", defval=10)
+
+//debugon = input.bool(title="Show Debuag Values", defval=false)
+
+truncate(number, decimals) =>
+    factor = math.pow(10, decimals)
+    int(number * factor) / factor
+
+EMA10 = ta.ema(close, 10)
+
+plot(EMA10)
+
+AlrtPrice = (close - EMA10)/EMA10 <= (Pcnt/100)
+
+PecentRnd = ((close - EMA10)/EMA10) * 100
+
+EMAPercent = truncate(PecentRnd,2)
+
+isHourlyTimeFrame = (timeframe.period == 'M')
+
+strTicker = syminfo.tickerid
+
+var table tblDebug = table.new(position.top_center, 4, 4, border_width=3, bgcolor=color.black, frame_width=2, frame_color=color.black)
+
+if AlrtPrice and isHourlyTimeFrame
+    table.cell(tblDebug, 0, 1,"Price Less Than " + str.tostring(Pcnt) + "% Away from 10 EMA" , 30,  text_color=color.green)
+    table.cell(tblDebug, 1, 1,str.tostring(EMAPercent) + " %", 5,  text_color=color.green) 
+    
+if not AlrtPrice and isHourlyTimeFrame
+    table.cell(tblDebug, 0, 1,"Price More Than " + str.tostring(Pcnt) + "% Away from 10 EMA" , 30,  text_color=color.red)
+    table.cell(tblDebug, 1, 1,str.tostring(EMAPercent) + " %", 5,  text_color=color.red)
+    
+if not isHourlyTimeFrame
+    table.cell(tblDebug, 0, 1,"Please Change Time Frame to Monthly" , 30,  text_color=color.red)
+    
+if strTicker != "BATS:SPY"
+    table.cell(tblDebug, 0, 1,"Please Change Ticker to SPY" , 30,  text_color=color.red)
+
+
+alertcondition(not AlrtPrice, "Alert threshold", "SPY EMA Above Alert Threshold")
+
+//if debugon
+//    table.cell(tblDebug, 0, 0,str.tostring(AlrtPrice), 10,  text_color=color.white)
+//    table.cell(tblDebug, 1, 0,str.tostring(EMA10), 10,  text_color=color.white)
+//    table.cell(tblDebug, 2, 0,str.tostring(close), 10,  text_color=color.white)
+//    table.cell(tblDebug, 3, 0,str.tostring((close - EMA10)/EMA10), 10,  text_color=color.white)
+

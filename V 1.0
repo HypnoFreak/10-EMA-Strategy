@@ -1,5 +1,5 @@
 // This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
-// © Going4Great
+// © Going4Great Gareth is Awesome
 
 //By Gareth
 
@@ -8,22 +8,31 @@
 indicator("10 EMA Strategy", overlay=true)
 
 //DEBUG TABLE
-var table tblDebug = table.new(position.bottom_center, 4, 4, border_width=3, bgcolor=color.black, frame_width=2, frame_color=color.black)
-
+var table tblDebug = table.new(position.top_right, 4, 10, border_width=1, bgcolor=color.black, frame_width=2, frame_color=color.black)
+var table tbltrade = table.new(position.top_center, 2, 4, border_width=1, bgcolor=color.black, frame_width=2, frame_color=color.black)
 
 // Setting time
-alrtHours = input.session(title='Candle Alert Hours', defval='0947-1230')
-alrtHours2 = input.session(title='Candle Alert Hours 2', defval='0930-1230')
+alrtHours = input.session(title='First 20 Minutes', defval='0930-0950') //defval='0947-1400')
+alrtHours2 = input.session(title='All day session', defval='0930-1400')
 alrtHours3  = input.session(title='Premarket Time', defval='0400-0930')
+alrtHours4 = input.session(title='Open to All Trades', defval='1030-1400')
+alrtHours5 = input.session(title='After first 20 Min', defval='0950-1400')
 
-boolExtended = input.bool(title='Extended Hours Candle', defval=false)
+yourrisk = input.int(defval = 100, title ="Your Risk $")
+yourreward = input.float(defval = 1.3, title ="Your Target (in R's)")
 
+isOborOs = input.bool(defval = false, title = "Ignore Entry if OS/OB")
+
+
+// Check if bar falls within alert time
 InSession(sess) =>
     na(time(timeframe.period, sess)) == false
-// Check if bar falls within alert time
-alrtTrade = InSession(alrtHours)
-alrtTrade2 = InSession(alrtHours2)
-alrtTrade3 = InSession(alrtHours3)
+
+alrtTrade = InSession(alrtHours) // first 20 minutes
+alrtTrade2 = InSession(alrtHours2) // all day open - close
+alrtTrade3 = InSession(alrtHours3) // pre market hours
+opentoall = InSession(alrtHours4) // after first hour
+alrtTrade5 = InSession(alrtHours5) // after first 20 minutes
 
 // Declare Labels
 var ln_max = line.new(na, na, na, na, extend=extend.none, color=color.green, width=2)
@@ -44,6 +53,18 @@ plot(EMA10)
 EMA20 = ta.ema(close, 20)
 plot(EMA20, color = color.white)
 
+// Show ATR Values
+atr14 = ta.atr(14)
+atr1 = ta.atr(1)
+vatr14 = request.security(syminfo.tickerid, "D", atr14, lookahead=barmerge.lookahead_on)
+vatr11 = request.security(syminfo.tickerid, "D", atr1, lookahead=barmerge.lookahead_on)
+
+atrpercent = (vatr11/vatr14) * 100
+coloratr = atrpercent > 79 ? color.orange :color.yellow
+
+table.cell(tblDebug, 0, 3,"ATR (14): $" + str.tostring(vatr14,"#.##"),  text_color=color.yellow)
+table.cell(tblDebug, 0, 4,"Todays Range: $"  + str.tostring(vatr11,"#.##") + " (" + str.tostring(atrpercent,"#.#") + "%)",  text_color=coloratr)
+
 
 // Get extended and regular EMA
 textend = ticker.new(syminfo.prefix, syminfo.ticker, session.regular)
@@ -51,6 +72,7 @@ textend2 = ticker.modify(textend, session.extended)
 
 c1 = request.security(textend, "3", ta.ema(close, 10), lookahead=barmerge.lookahead_on)
 c2 = request.security(textend2, "3", ta.ema(close, 10) ,lookahead=barmerge.lookahead_on)
+
 
 //table.cell(tblDebug, 0, 1,"EMA Normal: " + str.tostring(c1) + " EMA EXTEND: "  + str.tostring(c2),  text_color=color.green)
 
@@ -60,17 +82,54 @@ vwapValue = ta.vwap(close)
 plot(series=vwapValue, color=color.teal, linewidth=2)
 
 // Get Previous Day H/L
-D_High = request.security(syminfo.tickerid, 'D', high[1],lookahead=barmerge.lookahead_on)
-D_Low = request.security(syminfo.tickerid, 'D', low[1],lookahead=barmerge.lookahead_on)
-D_Close = request.security(syminfo.tickerid, 'D', close[1],lookahead=barmerge.lookahead_on)
-D_Open = request.security(syminfo.tickerid, 'D', open[1],lookahead=barmerge.lookahead_on)
+[D_High, H_Today] = request.security(syminfo.tickerid, 'D', [high[1],high],lookahead=barmerge.lookahead_on)
+[D_Low, L_Today] = request.security(syminfo.tickerid, 'D', [low[1],low],lookahead=barmerge.lookahead_on)
+[D_Close, C_2,C_3, C_Today] = request.security(syminfo.tickerid, 'D', [close[1],close[2],close[3],close],lookahead=barmerge.lookahead_on)
+[D_Open, O_2,O_3,O_Today] = request.security(syminfo.tickerid, 'D', [open[1],open[2],open[3],open],lookahead=barmerge.lookahead_on)
+
+Thigh = request.security(syminfo.tickerid, 'D', high,lookahead=barmerge.lookahead_on,gaps=barmerge.gaps_off)
+Tlow = request.security(syminfo.tickerid, 'D',low,lookahead=barmerge.lookahead_on,gaps=barmerge.gaps_off)
+Tclose = request.security(syminfo.tickerid, 'D',close,lookahead=barmerge.lookahead_on,gaps=barmerge.gaps_off)
+Topen = request.security(syminfo.tickerid, 'D',open,lookahead=barmerge.lookahead_on,gaps=barmerge.gaps_off)
+
+//Check for 3 Bear/Bull Candles on the daily
+if D_Close > D_Open and C_2 > O_2 and  C_3 > O_3
+    table.cell(tblDebug, 0, 1,"3 Bull Daily Candles - Be Quick with exit or patient on entries",  text_color=color.red)
+
+if D_Close < D_Open and C_2 < O_2 and  C_3 < O_3
+    table.cell(tblDebug, 0, 1,"3 Bear Daily Candles - Be Quick with exit or patient on entries",  text_color=color.red)
+    
+if not (D_Close < D_Open and C_2 < O_2 and  C_3 < O_3) and not (D_Close > D_Open and C_2 > O_2 and  C_3 > O_3)
+    table.cell(tblDebug, 0, 1,"", bgcolor=color.new(color.gray,100), text_color=color.red)
+
+// RSI
+rsiValue = ta.rsi(close, 14)
+rsiD =  request.security(syminfo.tickerid, 'D',rsiValue,lookahead=barmerge.lookahead_on)
+rsi4 =  request.security(syminfo.tickerid, '240',rsiValue,lookahead=barmerge.lookahead_on)
+rsi2 =  request.security(syminfo.tickerid, '120',rsiValue,lookahead=barmerge.lookahead_on)
+rsi1 =  request.security(syminfo.tickerid, '60',rsiValue,lookahead=barmerge.lookahead_on)
+rsi15 =  request.security(syminfo.tickerid, '15',rsiValue,lookahead=barmerge.lookahead_on)
+rsi5 =  request.security(syminfo.tickerid, '5',rsiValue,lookahead=barmerge.lookahead_on)
+
+color1 = rsi1 > 70 or rsi1 < 30 ? color.red :color.white
+color2 = rsi15 > 70 or rsi15 < 30 ? color.red :color.white
+color3 = rsi5 > 70 or rsi5 < 30 ? color.red :color.white
+
+overbought = (rsi15 > 70) and (rsi5 > 70)
+oversold = (rsi15 < 30) and (rsi5 < 30)
+
+off = (overbought and isOborOs) or (oversold and isOborOs)
+
+//table.cell(tblDebug, 0, 5,"RSI 1 HR: "  + str.tostring(rsi1,"#.##"),  text_color=color1)
+//table.cell(tblDebug, 0, 6,"RSI 15 Min: "  + str.tostring(rsi15,"#.##"),  text_color=color2)
+//table.cell(tblDebug, 0, 7,"RSI 5 Min: "  + str.tostring(rsi5,"#.##"),  text_color=color3)
 
 
-plot(timeframe.isintraday ? D_High : na, title='Daily High', style=plot.style_line, color=color.new(color.red, 0), linewidth=2)
-plot(timeframe.isintraday ? D_Low : na, title='Daily Low', style=plot.style_line, color=color.new(color.orange, 0), linewidth=2)
+plot(timeframe.isintraday ? D_High : na, title='Daily High', style=plot.style_circles, color=color.new(color.red, 0), linewidth=2)
+plot(timeframe.isintraday ? D_Low : na, title='Daily Low', style=plot.style_circles, color=color.new(color.orange, 0), linewidth=2)
 
 
-// Initialize Flag Array
+// Initialize Flag Arrayand
 var myArray = array.new_bool(15)
 var myArray1 = array.new_float(7)
     
@@ -81,46 +140,68 @@ if not alrtTrade3 and not alrtTrade2
     array.set(myArray, 3, false)    
     array.set(myArray, 4, false)    
     array.set(myArray, 5, false)
-    array.set(myArray, 6, false)    // Crossing
+    array.set(myArray, 6, false)    // Can Trade after first 20 minutes
     array.set(myArray, 7, false)   // Gap  
     array.set(myArray, 8, false)
-    array.set(myArray, 9, false)   
+    array.set(myArray, 9, false)
+    array.set(myArray, 10, false) //Can trade first 20 Minutes
+    
 
-if ta.crossover(high, D_High) or ta.crossunder(low, D_Low)
-//if close > D_High or low < D_Low
-    array.set(myArray, 6, true)    
 
-// Detect Gaps
+
+// Can Trade first 20 minute if Opens Above or Below Prev Days High Low
 if open > D_High and is_first
-    array.set(myArray, 6, true)
-    array.set(myArray, 7, true)   
+    array.set(myArray, 10, true)
     
 if open < D_Low and is_first
+    array.set(myArray, 10, true)
+// END DETECT GAPS
+
+// Can Trade first 20 minutes if Crosses Previous Day High/Low
+if (close > D_High) or (close < D_Low) and alrtTrade
+    array.set(myArray, 6, true)    
+
+//table.cell(tbltrade, 0, 2, "Yesterday Open:  " + str.tostring(D_Open) + " \n Yesterday Close:  " + str.tostring(D_Close),  text_color=color.yellow)
+
+// Can Trade first 20 minute if Bull candle Below Prev Open or Bear Candle Gapping Above Previous Open
+if (D_Close > D_Open) and (open < D_Open) and is_first //Bull Candle Below Previous Open
     array.set(myArray, 6, true)
-    array.set(myArray, 7, true) 
-// END DETECT GAPS    
     
 
-//table.cell(tblDebug, 0, 1,"EMA Normal: " + str.tostring(c1) + " EMA EXTEND: "  + str.tostring(c2),  text_color=color.green)
-//table.cell(tblDebug, 0, 2,"D high: " + str.tostring(D_High) + " D Low: "  + str.tostring(D_Low),  text_color=color.green)
-//table.cell(tblDebug, 0, 3,"Open: " + str.tostring(open) + " Close: "  + str.tostring(close),  text_color=color.green)
+if (D_Close < D_Open) and (D_Open < open) and is_first  //Bear Candle Above Previous Open
+    array.set(myArray, 6, true)
 
-bulltrade = (open > close) and (close > c1) and (close > c2) and (alrtTrade or array.get(myArray, 7)) and array.get(myArray, 6)
-beartrade = (open < close) and (close < c1) and (close < c2) and (alrtTrade or array.get(myArray, 7)) and array.get(myArray, 6)
+    
+if alrtTrade and array.get(myArray, 6)
+    array.set(myArray, 7, true)
+else
+    array.set(myArray, 7, false)
+    
+//table.cell(tbltrade, 0, 1,"Array 10: " + str.tostring(array.get(myArray, 10)) + "\n Array 6: " + str.tostring(array.get(myArray, 6)) + "\n Array 7: " + str.tostring(array.get(myArray, 7)),  text_color=color.yellow)
+
+gapabovebelow = array.get(myArray, 10) and alrtTrade
+after20min = array.get(myArray, 6) and alrtTrade5
+
+//bulltrade = ((open > close) and (close > c1) and (close > c2)) and ((array.get(myArray, 7) or opentoall or array.get(myArray, 10)) )
+beartrade = ((open < close) and (close < c1) and (close < c2)) and ((gapabovebelow or opentoall or after20min )) and not off
+
+bulltrade = ((open > close) and (close > c1) and (close > c2)) and (gapabovebelow or opentoall or after20min ) and not off
 
 plotshape(bulltrade, style = shape.triangleup, location = location.belowbar, color = color.green, text = "T")
 plotarrow(bulltrade ? 1: na, colorup = color.green, maxheight = 10)
 plotshape(beartrade, style = shape.triangledown, location = location.abovebar, color = color.red, text = "T")
 plotarrow(beartrade ? -1: na, colordown = color.red, maxheight = 10)
 
-barColour = (open > close) and (close > c1) and (close > c2) and (alrtTrade or array.get(myArray, 7)) and array.get(myArray, 6)  ? color.purple :na
+//barColour = ((open > close) and (close > c1) and (close > c2)) and (array.get(myArray, 7) or opentoall or array.get(myArray, 10) ) ? color.purple :na
+barColour = ((open > close) and (close > c1) and (close > c2)) and ((gapabovebelow or opentoall or after20min ) )  and not off ? color.purple :na
 barcolor(color=barColour) 
 
 if (open > close) and (close > c1) and (close > c2) and alrtTrade2 and array.get(myArray, 6)
     array.set(myArray, 0, true)
 
 
-barColour3 = (open < close) and (close < c1) and (close < c2) and (alrtTrade or array.get(myArray, 7)) and array.get(myArray, 6) ? color.yellow :na
+barColour3 = ((open < close) and (close < c1) and (close < c2)) and ((gapabovebelow or opentoall or after20min ))  and not off ? color.yellow :na
+//barColour3 = ((open < close) and (close < c1) and (close < c2)) and (array.get(myArray, 7) or opentoall or array.get(myArray, 10) ) ? color.yellow :na
 barcolor(color=barColour3) 
 
 if (open < close) and (close < c1) and (close < c2) and alrtTrade2
@@ -129,71 +210,42 @@ if (open < close) and (close < c1) and (close < c2) and alrtTrade2
 
 // DRAW BULL LINES
 if barstate.isconfirmed and bulltrade and not array.get(myArray, 4) and not array.get(myArray, 8) //
-    line.set_xy1(id = ln_max, x = bar_index, y = high + .10)
-    line.set_xy2(id = ln_max, x = bar_index + 6, y = high + .10)
+    line.set_xy1(id = ln_max, x = bar_index, y = high)
+    line.set_xy2(id = ln_max, x = bar_index + 6, y = high)
     line.set_xy1(id = ln_min, x = bar_index , y = low < EMA10 ? low - (high - low) : EMA10)
     line.set_xy2(id = ln_min, x = bar_index + 6, y = low < EMA10 ? low - (high - low) : EMA10)
+    tom = low < EMA10 ? low - (high - low) : EMA10
+    line.set_xy1(id = ln_profitbull, x = bar_index , y = ((high - tom) * yourreward) + high )
+    line.set_xy2(id = ln_profitbull, x = bar_index + 6, y = ((high - tom) * yourreward) + high )    
     alert("10 EMA: Long Entry", alert.freq_once_per_bar)
     array.set(myArray, 4, true)
     array.set(myArray, 0, true)
     array.set(myArray, 8, true)
     array.set(myArray, 9, false)
+    tradeshares = yourrisk/(high - tom)
+    myLabel = label.new(x=bar_index, y = high, color=color.green, text='Buy LMT: ' + str.tostring(high, "#.##") + " \n Stop SELL: " + str.tostring(low < EMA10 ? low - (high - low): EMA10, "#.##") + "\n Shares: " + str.tostring(tradeshares,"#")  + "\n Capital (6:1): " + str.tostring((tradeshares * high)/6,"#") + "\n Target " + str.tostring(((high - tom) * yourreward) + high, "#.##"), textcolor=color.white, style=label.style_label_down, yloc=yloc.abovebar)
+    myLabel
 
 if barstate.isconfirmed and beartrade and not array.get(myArray, 5) and not array.get(myArray, 9)
     line.set_xy1(id = ln_min, x = bar_index, y = high > EMA10 ? high + (high - low) : EMA10)
     line.set_xy2(id = ln_min, x = bar_index + 6, y = high > EMA10 ? high + (high - low) : EMA10)
-    line.set_xy1(id = ln_max, x = bar_index, y = low - .10)
-    line.set_xy2(id = ln_max, x = bar_index + 6, y = low - .10)
+    line.set_xy1(id = ln_max, x = bar_index, y = low)
+    line.set_xy2(id = ln_max, x = bar_index + 6, y = low)
+    tom = high > EMA10 ? high + (high - low) : EMA10
+    line.set_xy1(id = ln_profitbear, x = bar_index , y = low - ((tom - low) * yourreward))
+    line.set_xy2(id = ln_profitbear, x = bar_index + 6, y = low - ((tom - low) * yourreward) )       
     array.set(myArray, 5, true)
     alert("10 EMA: Short Entry", alert.freq_once_per_bar)
     array.set(myArray, 0, true)
     array.set(myArray, 9, true)
     array.set(myArray, 8, false)
-// Colour background when price crosses average
 
-//bgcolor(color=ta.crossunder(close, vwapValue) and EMA10 < vwapValue and alrtTrade and bulltrade and array.get(myArray, 0) ? color.gray : na,  transp=85)
-alertcondition(ta.crossunder(close, vwapValue) and EMA10 < vwapValue , "Bull Crossing VWAP", "Crossing VWAP: Move Stop")
-     
-//bgcolor(color=EMA10 > vwapValue and alrtTrade and close < EMA10 and bulltrade and array.get(myArray, 0) ? color.orange : na, transp=85)
-alertcondition(EMA10 > vwapValue and alrtTrade and close < EMA10, "Bull Crossing EMA", "Crossing EMA: Move Stop")     
-
-
-//bgcolor(color=ta.crossover(close, vwapValue) and EMA10 > vwapValue and alrtTrade and beartrade and array.get(myArray, 0) ? color.gray : na, transp=85)
-alertcondition(ta.crossover(close, vwapValue) and EMA10 > vwapValue , "Bear Crossing VWAP", "Crossing VWAP: Move Stop")
-     
-//bgcolor(color=EMA10 < vwapValue and alrtTrade and close > EMA10 and beartrade  and array.get(myArray, 0) ? color.orange : na, transp=85)
-alertcondition(EMA10 < vwapValue and alrtTrade and close > EMA10, "Bear Crossing EMA", "Crossing EMA: Move Stop")
+    tradeshares = yourrisk/(tom-low)
+    myLabel = label.new(x=bar_index, y = high, color=color.red, text='Sell LMT: ' + str.tostring(low, "#.##") + " \n Stop BUY: " + str.tostring(tom, "#.##") + "\n Shares: " + str.tostring(tradeshares,"#") + "\n Capital (6:1): " + str.tostring((tradeshares * low)/6,"#") + "\n Target " + str.tostring(low - ((tom - low) * yourreward), "#.##"), textcolor=color.white, style=label.style_label_up, yloc=yloc.belowbar)
+    myLabel
 
 
 
 
 
 
-//    array.set(myArray1,1,high)
-//    array.set(myArray1,2,low)
-
-    //line.new(bar_index + 8 , low - 50, bar_index + 8, high + 50, color=color.purple, width=2)
-    //line.set_xy1(id = ln_profitbull, x = bar_index, y = high + .1 + ((high - EMA10) * 1.4))
-    //line.set_xy2(id = ln_profitbull, x = bar_index + 30, y = high + .1 + ((high - EMA10) * 1.4))
-//    array.set(myArray1, 0, ((high-EMA10) * 1.4) + high) 
- 
-    
-//    strategy.exit("exit", "10 EMA Long", profit = (high-EMA10) * 1.4)
-
-//strategy.exit("exit", "10 EMA Long", 1, limit = array.get(myArray1,0))
-
-//if ta.barssince((open > close) and (close > EMA10) and barstate.isconfirmed and bulltrade and not array.get(myArray, 4)) == 7
-//if (open < close) and (close < EMA10) and (close < Noext10) and barstate.isconfirmed and beartrade and array.get(myArray, 5) and (array.get(myArray1, 1) < high)
-//    array.set(myArray, 5, false)
-     
-
- //   
-//    array.set(myArray1,1,high)
-//    array.set(myArray1,2,low)
-//    
-    //line.new(bar_index + 8 , low - 50, bar_index + 8, high + 50, color=color.purple, width=2)
-    //line.set_xy1(id = ln_profitbear, x = bar_index, y = low - .1 - ((EMA10 - low) * 1.5 ))       
-   // line.set_xy2(id = ln_profitbear, x = bar_index + 30, y = low - .1 - ((EMA10 -low) * 1.5))
-    
-//    line.set_xy1(ln_min, bar_index - 2, H3)
-//    line.set_xy2(ln_min, bar_index + 2, H3)

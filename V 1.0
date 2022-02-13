@@ -1,5 +1,5 @@
 // This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
-// © Going4Great Gareth is Awesome
+// © Going4Great Gareth is Awesome yay
 
 //By Gareth
 
@@ -9,7 +9,7 @@ indicator("10 EMA Strategy", overlay=true)
 
 //DEBUG TABLE
 var table tblDebug = table.new(position.top_right, 4, 10, border_width=1, bgcolor=color.black, frame_width=2, frame_color=color.black)
-var table tbltrade = table.new(position.top_center, 2, 4, border_width=1, bgcolor=color.black, frame_width=2, frame_color=color.black)
+var table tbltrade = table.new(position.top_center, 3, 5, border_width=1, bgcolor=color.black, frame_width=2, frame_color=color.black)
 
 // Setting time
 alrtHours = input.session(title='First 20 Minutes', defval='0930-0950') //defval='0947-1400')
@@ -62,8 +62,8 @@ vatr11 = request.security(syminfo.tickerid, "D", atr1, lookahead=barmerge.lookah
 atrpercent = (vatr11/vatr14) * 100
 coloratr = atrpercent > 79 ? color.orange :color.yellow
 
-table.cell(tblDebug, 0, 3,"ATR (14): $" + str.tostring(vatr14,"#.##"),  text_color=color.yellow)
-table.cell(tblDebug, 0, 4,"Todays Range: $"  + str.tostring(vatr11,"#.##") + " (" + str.tostring(atrpercent,"#.#") + "%)",  text_color=coloratr)
+table.cell(tblDebug, 0, 3,"ATR (14): $" + str.tostring(vatr14,"#.##"),  text_color=color.yellow, text_size = size.large)
+table.cell(tblDebug, 0, 4,"Todays Range: $"  + str.tostring(vatr11,"#.##") + " (" + str.tostring(atrpercent,"#.#") + "%)",  text_color=coloratr, text_size = size.large)
 
 
 // Get extended and regular EMA
@@ -130,12 +130,13 @@ plot(timeframe.isintraday ? D_Low : na, title='Daily Low', style=plot.style_circ
 
 
 // Initialize Flag Arrayand
-var myArray = array.new_bool(15)
-var myArray1 = array.new_float(7)
+var myArray = array.new_bool(20)
+var myArray1 = array.new_float(11)
+// var bool bulltrade = false
     
 if not alrtTrade3 and not alrtTrade2
     array.set(myArray, 0, false)
-    array.set(myArray, 1, false)    
+    array.set(myArray, 1, false)   
     array.set(myArray, 2, false)
     array.set(myArray, 3, false)    
     array.set(myArray, 4, false)    
@@ -145,17 +146,45 @@ if not alrtTrade3 and not alrtTrade2
     array.set(myArray, 8, false)
     array.set(myArray, 9, false)
     array.set(myArray, 10, false) //Can trade first 20 Minutes
+    array.set(myArray, 11, false)   // Entering trade by corssing entry line BULL 
+    array.set(myArray, 12, false)    // Entering trade by corssing entry line Bear 
+    array.set(myArray, 13, false)   // Crossing Take Profit Flag Bull
+    array.set(myArray, 14, false)    // Crossing Take Profit Flag Bear 
+    array.set(myArray, 15, false)   // Crossing Stop BULL
+    array.set(myArray, 16, false)    // Crossing Stop Bear
+    bulltrade = false
+    beartrade = false
+    array.set(myArray1, 0, 0)
+    array.set(myArray1, 1, 0)   
+    array.set(myArray1, 2, 0)
+    array.set(myArray1, 3, 0)    
+    array.set(myArray1, 4, 0)    
+    array.set(myArray1, 5, 0)
+    array.set(myArray1, 6, 0)
+    array.set(myArray1, 7, 0)
+    array.set(myArray1, 8, 0)    
+    array.set(myArray1, 9, 0)
+    array.set(myArray1, 10, 0)    
+
     
-
-
-
 // Can Trade first 20 minute if Opens Above or Below Prev Days High Low
 if open > D_High and is_first
     array.set(myArray, 10, true)
+    array.set(myArray1, 10, low)
     
 if open < D_Low and is_first
     array.set(myArray, 10, true)
+    array.set(myArray1, 10, high) 
+
+if array.get(myArray,10) and is_first and barstate.isconfirmed
+    alert("Trade 10 EMA in 1st 20 Minutes", alert.freq_once_per_bar)
+//    table.cell(tbltrade, 0,1 , " Can Trade In 1st 20 Minutes ",  text_color=color.yellow)
+
+    
 // END DETECT GAPS
+
+//table.cell(tbltrade, 0,2 , " Prev High:  " + str.tostring(D_High) + " Open " + str.tostring(open),  text_color=color.yellow)
+//table.cell(tbltrade, 1,2 , " Prev Low:  " + str.tostring(D_Low) + " FLAG first 20: " + str.tostring(array.get(myArray,10)),  text_color=color.yellow)
 
 // Can Trade first 20 minutes if Crosses Previous Day High/Low
 if (close > D_High) or (close < D_Low) and alrtTrade
@@ -207,24 +236,32 @@ barcolor(color=barColour3)
 if (open < close) and (close < c1) and (close < c2) and alrtTrade2
     array.set(myArray, 2, true)
 
+countbullbars = bulltrade and not array.get(myArray, 4) and not array.get(myArray, 8) // USED as art of check for 5 candles after trade entry
 
 // DRAW BULL LINES
 if barstate.isconfirmed and bulltrade and not array.get(myArray, 4) and not array.get(myArray, 8) //
     line.set_xy1(id = ln_max, x = bar_index, y = high)
     line.set_xy2(id = ln_max, x = bar_index + 6, y = high)
+//    stop = 
     line.set_xy1(id = ln_min, x = bar_index , y = low < EMA10 ? low - (high - low) : EMA10)
+    line.set_xy1(id = ln_min, x = bar_index , y = low < EMA10 ? (low - (high - low)) : EMA10)    
     line.set_xy2(id = ln_min, x = bar_index + 6, y = low < EMA10 ? low - (high - low) : EMA10)
+//    table.cell(tbltrade, 2,2 , " EMA EXT " + str.tostring(c2),  text_color=color.yellow)
     tom = low < EMA10 ? low - (high - low) : EMA10
     line.set_xy1(id = ln_profitbull, x = bar_index , y = ((high - tom) * yourreward) + high )
     line.set_xy2(id = ln_profitbull, x = bar_index + 6, y = ((high - tom) * yourreward) + high )    
     alert("10 EMA: Long Entry", alert.freq_once_per_bar)
     array.set(myArray, 4, true)
-    array.set(myArray, 0, true)
     array.set(myArray, 8, true)
     array.set(myArray, 9, false)
     tradeshares = yourrisk/(high - tom)
-    myLabel = label.new(x=bar_index, y = high, color=color.green, text='Buy LMT: ' + str.tostring(high, "#.##") + " \n Stop SELL: " + str.tostring(low < EMA10 ? low - (high - low): EMA10, "#.##") + "\n Shares: " + str.tostring(tradeshares,"#")  + "\n Capital (6:1): " + str.tostring((tradeshares * high)/6,"#") + "\n Target " + str.tostring(((high - tom) * yourreward) + high, "#.##"), textcolor=color.white, style=label.style_label_down, yloc=yloc.abovebar)
+    myLabel = label.new(size = size.large, x=bar_index, y = high, color=color.green, text='Buy LMT: ' + str.tostring(high, "#.##") + " \n Stop SELL: " + str.tostring(low < EMA10 ? low - (high - low): EMA10, "#.##") + "\n Shares: " + str.tostring(tradeshares,"#")  + "\n Capital (6:1): " + str.tostring((tradeshares * high)/6,"#") + "\n Target " + str.tostring(((high - tom) * yourreward) + high, "#.##"), textcolor=color.white, style=label.style_label_down, yloc=yloc.abovebar)
     myLabel
+    array.set(myArray1, 0, high) // set entry point
+    array.set(myArray1, 2, ((high - tom) * yourreward) + high)// set target
+    array.set(myArray1, 4, low < EMA10 ? low - (high - low): EMA10) // set stop    
+
+countbearbars = beartrade and not array.get(myArray, 5) and not array.get(myArray, 9) // USED as art of check for 5 candles after trade entry
 
 if barstate.isconfirmed and beartrade and not array.get(myArray, 5) and not array.get(myArray, 9)
     line.set_xy1(id = ln_min, x = bar_index, y = high > EMA10 ? high + (high - low) : EMA10)
@@ -236,16 +273,45 @@ if barstate.isconfirmed and beartrade and not array.get(myArray, 5) and not arra
     line.set_xy2(id = ln_profitbear, x = bar_index + 6, y = low - ((tom - low) * yourreward) )       
     array.set(myArray, 5, true)
     alert("10 EMA: Short Entry", alert.freq_once_per_bar)
-    array.set(myArray, 0, true)
     array.set(myArray, 9, true)
     array.set(myArray, 8, false)
-
     tradeshares = yourrisk/(tom-low)
-    myLabel = label.new(x=bar_index, y = high, color=color.red, text='Sell LMT: ' + str.tostring(low, "#.##") + " \n Stop BUY: " + str.tostring(tom, "#.##") + "\n Shares: " + str.tostring(tradeshares,"#") + "\n Capital (6:1): " + str.tostring((tradeshares * low)/6,"#") + "\n Target " + str.tostring(low - ((tom - low) * yourreward), "#.##"), textcolor=color.white, style=label.style_label_up, yloc=yloc.belowbar)
+    myLabel = label.new(size = size.large,x=bar_index, y = high, color=color.red, text='Sell LMT: ' + str.tostring(low, "#.##") + " \n Stop BUY: " + str.tostring(tom, "#.##") + "\n Shares: " + str.tostring(tradeshares,"#") + "\n Capital (6:1): " + str.tostring((tradeshares * low)/6,"#") + "\n Target " + str.tostring(low - ((tom - low) * yourreward), "#.##"), textcolor=color.white, style=label.style_label_up, yloc=yloc.belowbar)
     myLabel
+    array.set(myArray1, 1, low)                                 // set entry
+    array.set(myArray1, 3, low - ((tom - low) * yourreward) )  // set target 
 
 
 
+// Check Bars Since Trade Activated
+WaitTradeBull = ta.barssince(countbullbars)
+WaitTradeBear = ta.barssince(countbearbars)
+
+// Check to see if 5 bars (15 Minutes) have passed and we need to cancel trade
+
+if (WaitTradeBull > 0 and WaitTradeBull <6) and ta.crossover(high, array.get(myArray1, 0))     //crossing entry line
+    array.set(myArray, 11, true) // set crossing entry flag as true
+//    table.cell(tbltrade, 1,2 , " Entered ",  text_color=color.yellow)
+//else if not array.get(myArray,11)
+//    table.cell(tbltrade, 1,2 , " Waiting ",  text_color=color.yellow)
+
+if WaitTradeBull > 1 and (ta.crossover(high,array.get(myArray1, 2)))     //crossing take profit
+    array.set(myArray, 13, true) // set crossing entry flag as true
+//    table.cell(tbltrade, 1,1 , " Take Profit " + str.tostring(array.get(myArray1, 2)),  text_color=color.yellow)
+//else if not array.get(myArray, 13) 
+//    table.cell(tbltrade, 1,1 , " Waiting ",  text_color=color.yellow)
+    
+if WaitTradeBull > 0 and (ta.cross(low,array.get(myArray1, 4))) and array.get(myArray,11) and not array.get(myArray,13)    //check if stopped out
+    array.set(myArray, 15, true) // set crossing entry flag as true
+//    table.cell(tbltrade, 1,1 , " Stopped Out ",  text_color=color.yellow)
+ 
+//if (WaitTradeBull == 5) and not array.get(myArray,11) and not array.get(myArray,15)
+//    table.cell(tbltrade, 0, 2, "Close Trade: Not Triggered in Time  ",  text_color=color.red)
+//else if WaitTradeBull > 6 and array.get(myArray,11) and not array.get(myArray,13) and array.get(myArray,15)                                        //if 7 bars and has crossed entry line but not take profit
+//    table.cell(tbltrade, 0, 2, str.tostring(WaitTradeBull) + " Can move stop  " + str.tostring(array.get(myArray1, 2)) + " ",  text_color=color.green) 
+//else 
+//    table.cell(tbltrade, 0, 2, " Have a nice day ",  text_color=color.yellow)
 
 
-
+if (WaitTradeBear > 0 and WaitTradeBear <6) and ta.cross(close, array.get(myArray1, 1)) //crossing entry line
+    array.set(myArray, 12, true)

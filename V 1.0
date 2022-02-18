@@ -102,6 +102,10 @@ if D_Close < D_Open and C_2 < O_2 and  C_3 < O_3
 if not (D_Close < D_Open and C_2 < O_2 and  C_3 < O_3) and not (D_Close > D_Open and C_2 > O_2 and  C_3 > O_3)
     table.cell(tblDebug, 0, 1,"", bgcolor=color.new(color.gray,100), text_color=color.red)
 
+
+//table.cell(tblDebug, 0, 5,"Inside On Daily "  + str.tostring(rsi1,"#.##"),  text_color=color.red)
+
+
 // RSI
 rsiValue = ta.rsi(close, 14)
 rsiD =  request.security(syminfo.tickerid, 'D',rsiValue,lookahead=barmerge.lookahead_on)
@@ -176,9 +180,6 @@ if open < D_Low and is_first
     array.set(myArray, 10, true)
     array.set(myArray1, 10, high) 
 
-if array.get(myArray,10) and is_first and barstate.isconfirmed
-    alert("Trade 10 EMA in 1st 20 Minutes", alert.freq_once_per_bar)
-//    table.cell(tbltrade, 0,1 , " Can Trade In 1st 20 Minutes ",  text_color=color.yellow)
 
     
 // END DETECT GAPS
@@ -200,6 +201,13 @@ if (D_Close > D_Open) and (open < D_Open) and is_first //Bull Candle Below Previ
 if (D_Close < D_Open) and (D_Open < open) and is_first  //Bear Candle Above Previous Open
     array.set(myArray, 6, true)
 
+if array.get(myArray,10) and is_first and barstate.isconfirmed
+    alert("Trade 10 EMA in 1st 20 Minutes", alert.freq_once_per_bar)
+    table.cell(tbltrade, 0,1 , "Can Trade In 1st 20 Minutes ",  text_color=color.yellow)
+else if array.get(myArray,6) and not array.get(myArray,10)
+    table.cell(tbltrade, 0,1 , "Trade AFTER first 20 Minutes ",  text_color=color.yellow)
+else if not array.get(myArray,10) and not array.get(myArray,6) 
+    table.cell(tbltrade, 0,1 , " Happy Trading ",  text_color=color.yellow)
     
 if alrtTrade and array.get(myArray, 6)
     array.set(myArray, 7, true)
@@ -255,7 +263,7 @@ if barstate.isconfirmed and bulltrade and not array.get(myArray, 4) and not arra
     array.set(myArray, 8, true)
     array.set(myArray, 9, false)
     tradeshares = yourrisk/(high - tom)
-    myLabel = label.new(size = size.large, x=bar_index, y = high, color=color.green, text='Buy LMT: ' + str.tostring(high, "#.##") + " \n Stop SELL: " + str.tostring(low < EMA10 ? low - (high - low): EMA10, "#.##") + "\n Shares: " + str.tostring(tradeshares,"#")  + "\n Capital (6:1): " + str.tostring((tradeshares * high)/6,"#") + "\n Target " + str.tostring(((high - tom) * yourreward) + high, "#.##"), textcolor=color.white, style=label.style_label_down, yloc=yloc.abovebar)
+    myLabel = label.new(size = size.large, x=bar_index, y = high, color=color.green, text='Buy LMT: ' + str.tostring(high, "#.##") + "\n Shares: " + str.tostring(tradeshares,"#") + " \n Stop SELL: " + str.tostring(low < EMA10 ? low - (high - low): EMA10, "#.##")  + "\n Capital (6:1): " + str.tostring((tradeshares * high)/6,"#") + "\n Target " + str.tostring(((high - tom) * yourreward) + high, "#.##"), textcolor=color.white, style=label.style_label_down, yloc=yloc.abovebar)
     myLabel
     array.set(myArray1, 0, high) // set entry point
     array.set(myArray1, 2, ((high - tom) * yourreward) + high)// set target
@@ -276,7 +284,7 @@ if barstate.isconfirmed and beartrade and not array.get(myArray, 5) and not arra
     array.set(myArray, 9, true)
     array.set(myArray, 8, false)
     tradeshares = yourrisk/(tom-low)
-    myLabel = label.new(size = size.large,x=bar_index, y = high, color=color.red, text='Sell LMT: ' + str.tostring(low, "#.##") + " \n Stop BUY: " + str.tostring(tom, "#.##") + "\n Shares: " + str.tostring(tradeshares,"#") + "\n Capital (6:1): " + str.tostring((tradeshares * low)/6,"#") + "\n Target " + str.tostring(low - ((tom - low) * yourreward), "#.##"), textcolor=color.white, style=label.style_label_up, yloc=yloc.belowbar)
+    myLabel = label.new(size = size.large,x=bar_index, y = high, color=color.red, text='Sell LMT: ' + str.tostring(low, "#.##") + "\n Shares: " + str.tostring(tradeshares,"#") + " \n Stop BUY: " + str.tostring(tom, "#.##") + "\n Capital (6:1): " + str.tostring((tradeshares * low)/6,"#") + "\n Target " + str.tostring(low - ((tom - low) * yourreward), "#.##"), textcolor=color.white, style=label.style_label_up, yloc=yloc.belowbar)
     myLabel
     array.set(myArray1, 1, low)                                 // set entry
     array.set(myArray1, 3, low - ((tom - low) * yourreward) )  // set target 

@@ -1,7 +1,7 @@
 // This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
-// © Going4Great Gareth is Awesome yay
+// © Going4Great Gareth is Awesome yay..
 
-//By Gareth
+//By Gareth G
 
 //@version=5
 
@@ -16,7 +16,7 @@ alrtHours = input.session(title='First 20 Minutes', defval='0930-0950') //defval
 alrtHours2 = input.session(title='All day session', defval='0930-1400')
 alrtHours3  = input.session(title='Premarket Time', defval='0400-0930')
 alrtHours4 = input.session(title='Open to All Trades', defval='1030-1400')
-alrtHours5 = input.session(title='After first 20 Min', defval='0950-1400')
+alrtHours5 = input.session(title='After first 20 Min', defval='0948-1400')
 
 yourrisk = input.int(defval = 100, title ="Your Risk $")
 yourreward = input.float(defval = 1.3, title ="Your Target (in R's)")
@@ -102,9 +102,19 @@ if D_Close < D_Open and C_2 < O_2 and  C_3 < O_3
 if not (D_Close < D_Open and C_2 < O_2 and  C_3 < O_3) and not (D_Close > D_Open and C_2 > O_2 and  C_3 > O_3)
     table.cell(tblDebug, 0, 1,"", bgcolor=color.new(color.gray,100), text_color=color.red)
 
+Dbars = D_Open < D_Close ? true : false // is previous bull candle
+DbarsToday = O_Today < C_Today ? true : false // current day bull
 
-//table.cell(tblDebug, 0, 5,"Inside On Daily "  + str.tostring(rsi1,"#.##"),  text_color=color.red)
-
+if (Dbars and DbarsToday) and  (O_Today < D_Open and C_Today < D_Close) // if both bull candles and inside
+    table.cell(tblDebug, 0, 5,"Inside On Daily a ",  text_color=color.red)
+else if (not Dbars and DbarsToday) and (O_Today > D_Close and C_Today < D_Open)  // bear previous bull today
+    table.cell(tblDebug, 0, 5,"Inside On Daily b",  text_color=color.red)
+else if (not Dbars and not DbarsToday) and (O_Today < D_Open and C_Today > D_Close)  // bear previous bear today
+    table.cell(tblDebug, 0, 5,"Inside On Daily c ",  text_color=color.red)
+else if (Dbars and not DbarsToday) and (O_Today < D_Close and C_Today > D_Open)  // bull previous bear today
+    table.cell(tblDebug, 0, 5,"Inside On Daily d ",  text_color=color.red)
+else
+    table.cell(tblDebug, 0, 5," ",  text_color=color.yellow)    
 
 // RSI
 rsiValue = ta.rsi(close, 14)
@@ -259,11 +269,15 @@ if barstate.isconfirmed and bulltrade and not array.get(myArray, 4) and not arra
     line.set_xy1(id = ln_profitbull, x = bar_index , y = ((high - tom) * yourreward) + high )
     line.set_xy2(id = ln_profitbull, x = bar_index + 6, y = ((high - tom) * yourreward) + high )    
     alert("10 EMA: Long Entry", alert.freq_once_per_bar)
-    array.set(myArray, 4, true)
+//    array.set(myArray, 4, true) FLAG SO ONLY RUNS ONCE
     array.set(myArray, 8, true)
     array.set(myArray, 9, false)
+//    prange =  math.abs((((D_Close - (((high - tom) * yourreward) + high)))/vatr14) * 100)
+    LongTarget = ((high - tom) * yourreward) + high
+    LongLoc = D_Close >= O_Today ? LongTarget - L_Today : LongTarget - D_Close
+    prange = math.abs((LongLoc/vatr14) * 100)
     tradeshares = yourrisk/(high - tom)
-    myLabel = label.new(size = size.large, x=bar_index, y = high, color=color.green, text='Buy LMT: ' + str.tostring(high, "#.##") + "\n Shares: " + str.tostring(tradeshares,"#") + " \n Stop SELL: " + str.tostring(low < EMA10 ? low - (high - low): EMA10, "#.##")  + "\n Capital (6:1): " + str.tostring((tradeshares * high)/6,"#") + "\n Target " + str.tostring(((high - tom) * yourreward) + high, "#.##"), textcolor=color.white, style=label.style_label_down, yloc=yloc.abovebar)
+    myLabel = label.new(size = size.large, x=bar_index, y = high, color=color.green, text= "Shares: " + str.tostring(tradeshares,"#") +'\n Buy STP: ' + str.tostring(high, "#.##") +  " \n Stop MKT: " + str.tostring(low < EMA10 ? low - (high - low): EMA10, "#.##") + "\n Take Profit: " + str.tostring(((high - tom) * yourreward) + high, "#.##" ) + "\n Profit ATR: " + str.tostring(prange,"#.##") + "%" + "\n Capital (6:1): " + str.tostring((tradeshares * high)/6,"#") , textcolor=color.white, style=label.style_label_down, yloc=yloc.abovebar)
     myLabel
     array.set(myArray1, 0, high) // set entry point
     array.set(myArray1, 2, ((high - tom) * yourreward) + high)// set target
@@ -279,12 +293,16 @@ if barstate.isconfirmed and beartrade and not array.get(myArray, 5) and not arra
     tom = high > EMA10 ? high + (high - low) : EMA10
     line.set_xy1(id = ln_profitbear, x = bar_index , y = low - ((tom - low) * yourreward))
     line.set_xy2(id = ln_profitbear, x = bar_index + 6, y = low - ((tom - low) * yourreward) )       
-    array.set(myArray, 5, true)
+//    array.set(myArray, 5, true)  FLAG SO ONLY RUNS ONCE
     alert("10 EMA: Short Entry", alert.freq_once_per_bar)
     array.set(myArray, 9, true)
     array.set(myArray, 8, false)
     tradeshares = yourrisk/(tom-low)
-    myLabel = label.new(size = size.large,x=bar_index, y = high, color=color.red, text='Sell LMT: ' + str.tostring(low, "#.##") + "\n Shares: " + str.tostring(tradeshares,"#") + " \n Stop BUY: " + str.tostring(tom, "#.##") + "\n Capital (6:1): " + str.tostring((tradeshares * low)/6,"#") + "\n Target " + str.tostring(low - ((tom - low) * yourreward), "#.##"), textcolor=color.white, style=label.style_label_up, yloc=yloc.belowbar)
+//    prange =  math.abs(((D_Close - (low - ((tom - low) * yourreward)))/vatr14) * 100)
+    LongTarget = low - ((tom - low) * yourreward)
+    LongLoc = D_Close >= O_Today ? H_Today - LongTarget : D_Close - LongTarget
+    prange = math.abs((LongLoc/vatr14) * 100)
+    myLabel = label.new(size = size.large,x=bar_index, y = high, color=color.red, text="Shares: " + str.tostring(tradeshares,"#") + '\n Sell STP: ' + str.tostring(low, "#.##") + "\n Take Profit: " + str.tostring(low - ((tom - low) * yourreward), "#.##") + " \n Stop MKT: " + str.tostring(tom, "#.##") + "\n Profit ATR: " + str.tostring(prange,"#.##") + "%" + "\n Capital (6:1): " + str.tostring((tradeshares * low)/6,"#") , textcolor=color.white, style=label.style_label_up, yloc=yloc.belowbar)
     myLabel
     array.set(myArray1, 1, low)                                 // set entry
     array.set(myArray1, 3, low - ((tom - low) * yourreward) )  // set target 

@@ -230,9 +230,9 @@ gapabovebelow = array.get(myArray, 10) and alrtTrade
 after20min = array.get(myArray, 6) and alrtTrade5
 
 //bulltrade = ((open > close) and (close > c1) and (close > c2)) and ((array.get(myArray, 7) or opentoall or array.get(myArray, 10)) )
-beartrade = ((open < close) and (close < c1) and (close < c2)) and ((gapabovebelow or opentoall or after20min )) and not off
+beartrade = ((open < close) and (close < c1) and (close < c2)) and ((gapabovebelow or opentoall or after20min )) and not off and not array.get(myArray, 9)
 
-bulltrade = ((open > close) and (close > c1) and (close > c2)) and (gapabovebelow or opentoall or after20min ) and not off
+bulltrade = ((open > close) and (close > c1) and (close > c2)) and (gapabovebelow or opentoall or after20min ) and not off and not array.get(myArray, 8)
 
 plotshape(bulltrade, style = shape.triangleup, location = location.belowbar, color = color.green, text = "T")
 plotarrow(bulltrade ? 1: na, colorup = color.green, maxheight = 10)
@@ -240,14 +240,14 @@ plotshape(beartrade, style = shape.triangledown, location = location.abovebar, c
 plotarrow(beartrade ? -1: na, colordown = color.red, maxheight = 10)
 
 //barColour = ((open > close) and (close > c1) and (close > c2)) and (array.get(myArray, 7) or opentoall or array.get(myArray, 10) ) ? color.purple :na
-barColour = ((open > close) and (close > c1) and (close > c2)) and ((gapabovebelow or opentoall or after20min ) )  and not off ? color.purple :na
+barColour = ((open > close) and (close > c1) and (close > c2)) and ((gapabovebelow or opentoall or after20min ) )  and not off and not array.get(myArray, 8) ? color.purple :na
 barcolor(color=barColour) 
 
 if (open > close) and (close > c1) and (close > c2) and alrtTrade2 and array.get(myArray, 6)
     array.set(myArray, 0, true)
 
 
-barColour3 = ((open < close) and (close < c1) and (close < c2)) and ((gapabovebelow or opentoall or after20min ))  and not off ? color.yellow :na
+barColour3 = ((open < close) and (close < c1) and (close < c2)) and ((gapabovebelow or opentoall or after20min ))  and not off and not array.get(myArray, 9) ? color.yellow :na
 //barColour3 = ((open < close) and (close < c1) and (close < c2)) and (array.get(myArray, 7) or opentoall or array.get(myArray, 10) ) ? color.yellow :na
 barcolor(color=barColour3) 
 
@@ -274,7 +274,7 @@ if barstate.isconfirmed and bulltrade and not array.get(myArray, 4) and not arra
     array.set(myArray, 9, false)
 //    prange =  math.abs((((D_Close - (((high - tom) * yourreward) + high)))/vatr14) * 100)
     LongTarget = ((high - tom) * yourreward) + high
-    LongLoc = D_Close >= O_Today ? LongTarget - L_Today : LongTarget - D_Close
+    LongLoc = (D_Close <= O_Today) and (L_Today > D_Close) ? LongTarget - D_Close : LongTarget - L_Today
     prange = math.abs((LongLoc/vatr14) * 100)
     tradeshares = yourrisk/(high - tom)
     myLabel = label.new(size = size.large, x=bar_index, y = high, color=color.green, text= "Shares: " + str.tostring(tradeshares,"#") +'\n Buy STP: ' + str.tostring(high, "#.##") +  " \n Stop MKT: " + str.tostring(low < EMA10 ? low - (high - low): EMA10, "#.##") + "\n Take Profit: " + str.tostring(((high - tom) * yourreward) + high, "#.##" ) + "\n Profit ATR: " + str.tostring(prange,"#.##") + "%" + "\n Capital (6:1): " + str.tostring((tradeshares * high)/6,"#") , textcolor=color.white, style=label.style_label_down, yloc=yloc.abovebar)
@@ -300,7 +300,7 @@ if barstate.isconfirmed and beartrade and not array.get(myArray, 5) and not arra
     tradeshares = yourrisk/(tom-low)
 //    prange =  math.abs(((D_Close - (low - ((tom - low) * yourreward)))/vatr14) * 100)
     LongTarget = low - ((tom - low) * yourreward)
-    LongLoc = D_Close >= O_Today ? H_Today - LongTarget : D_Close - LongTarget
+    LongLoc = (D_Close >= O_Today) and (H_Today < D_Close) ? D_Close - LongTarget : H_Today - LongTarget
     prange = math.abs((LongLoc/vatr14) * 100)
     myLabel = label.new(size = size.large,x=bar_index, y = high, color=color.red, text="Shares: " + str.tostring(tradeshares,"#") + '\n Sell STP: ' + str.tostring(low, "#.##") + "\n Take Profit: " + str.tostring(low - ((tom - low) * yourreward), "#.##") + " \n Stop MKT: " + str.tostring(tom, "#.##") + "\n Profit ATR: " + str.tostring(prange,"#.##") + "%" + "\n Capital (6:1): " + str.tostring((tradeshares * low)/6,"#") , textcolor=color.white, style=label.style_label_up, yloc=yloc.belowbar)
     myLabel

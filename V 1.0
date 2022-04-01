@@ -13,18 +13,27 @@ var table tbltrade = table.new(position.top_center, 3, 5, border_width=1, bgcolo
 
 // Setting time
 //alrtHours = input.session(title='First 20 Minutes', defval='0930-0950') //defval='0947-1400')
+
+yourrisk = input.int(defval = 100, title ="Your Risk $", group = "Trade Settings")
+tradingcapital = input.int(defval = 6000, title ="Your Trading Capital $", group = "Trade Settings")
+tradlev = input.int(defval = 6, title ="Your Trading Leverage eg. X:1",group = "Trade Settings", minval = 1, step = 1)
+yourreward = input.float(defval = 1.3, title ="Your Target (in R's)",group = "Trade Settings", step = 0.1, minval = 0.1)
+thresh = input.float(defval = 0.03, title ="EMA distance threshold in cents (Candle Wick - 10 EMA)",group = "Trade Settings" , minval = 0.00, maxval = 0.05, step = 0.01)
+atrthresh = input.int(defval = 86, title ="Your ATR Exclusion Threshold %",group = "Trade Settings" , minval = 1, maxval = 100, tooltip = "This sets the threshold at which you will get a black trade label indicating NO TRADE")
+
+ema20bool = input.bool(defval = true,  title = "Enable 20 EMA On Chart" , group = "Plots")
+vwapbool = input.bool(defval = true,  title = "Enable VWAP On Chart" , group = "Plots")
+distance = input.int(defval=3, title = "Prev Day H/L Label Distance", group = "Plots")
+labeldistance = input.float(defval=0.4, title = "Label Distance from Candle", step = 0.1, minval = 0.1, group = "Plots", tooltip = "The lower the number the further away!")
+
 alrtHours = '0930-0950'
-alrtHours2 = input.session(title='All day session', defval='0930-1400')
+alrtHours2 = input.session(title='All day session', defval='0930-1400', group = "Trading Times - Don't Change")
 //alrtHours3  = input.session(title='Premarket Time', defval='0400-0930')
 alrtHours3  = '0400-0930'
-alrtHours4 = input.session(title='Open to All Trades', defval='1030-1400')
-alrtHours5 = input.session(title='After first 20 Min', defval='0948-1400')
+alrtHours4 = input.session(title='Open to All Trades', defval='1030-1400', group = "Trading Times - Don't Change")
+alrtHours5 = input.session(title='After first 20 Min', defval='0948-1400', group = "Trading Times - Don't Change")
 
-yourrisk = input.int(defval = 100, title ="Your Risk $")
-tradingcapital = input.int(defval = 6000, title ="Your Trading Capital $")
-yourreward = input.float(defval = 1.3, title ="Your Target (in R's)")
-thresh = input.float(defval = 0.03, title ="EMA distance threshold in cents (Candle Wick - 10 EMA)")
-atrthresh = input.int(defval = 86, title ="Your ATR Exclusion Threshold %")
+
 
 isOborOs = false
 
@@ -52,11 +61,10 @@ t = time("1440", session.regular) // 1440=60*24 is the number of minutes in a wh
 is_first = na(t[1]) and not na(t) or t[1] < t
 
 
-// Get and Plot 10 EMA
 EMA10 = ta.ema(close, 10)
-plot(EMA10)
+plot(EMA10, title = "10 EMA")
 EMA20 = ta.ema(close, 20)
-plot(EMA20, color = color.white)
+plot(ema20bool ? EMA20 : na, title = "20 EMA", color = color.white)
 
 // Show ATR Values
 atr14 = ta.atr(14)
@@ -84,7 +92,7 @@ c2 = request.security(textend2, "3", ta.ema(close, 10) ,lookahead=barmerge.looka
 // Calculate moving average
 vwapValue = ta.vwap(close)
 // Plot value
-plot(series=vwapValue, color=color.teal, linewidth=2)
+plot(vwapbool ? vwapValue : na, color=color.teal, linewidth=2, title = "VWAP")
 
 // Get Previous Day H/L
 [D_High, H_Today] = request.security(syminfo.tickerid, 'D', [high[1],high],lookahead=barmerge.lookahead_on)
@@ -151,6 +159,13 @@ off = (overbought and isOborOs) or (oversold and isOborOs)
 plot(timeframe.isintraday ? D_High : na, title='Daily High', style=plot.style_circles, color=color.new(color.red, 0), linewidth=2)
 plot(timeframe.isintraday ? D_Low : na, title='Daily Low', style=plot.style_circles, color=color.new(color.orange, 0), linewidth=2)
 
+r1_x = time + math.round(ta.change(time)*distance)
+
+r1_label = label.new(x=r1_x, y=D_High, text="Prev Day High", xloc=xloc.bar_time, yloc=yloc.price, color=color.new(color.red, 70), style=label.style_label_left, textcolor=color.white, size=size.normal)
+label.delete(r1_label[1])
+
+r2_label = label.new(x=r1_x, y=D_Low, text="Prev Day Low", xloc=xloc.bar_time, yloc=yloc.price, color=color.new(color.orange, 70), style=label.style_label_left, textcolor=color.white, size=size.normal)
+label.delete(r2_label[1])
 
 // Initialize Flag Arrayand
 var myArray = array.new_bool(20)
@@ -280,7 +295,7 @@ if barstate.isconfirmed and bulltrade and not array.get(myArray, 4) and not arra
 //    table.cell(tbltrade, 2,2 , " EMA EXT " + str.tostring(c2),  text_color=color.yellow)
     tom = low < (EMA10 + thresh) ? low - (high - low) : EMA10
     line.set_xy1(id = ln_profitbull, x = bar_index , y = ((high - tom) * yourreward) + high )
-    line.set_xy2(id = ln_profitbull, x = bar_index + 6, y = ((high - tom) * yourreward) + high )    
+    line.set_xy2(id = ln_profitbull, x = bar_index + 6, y = ((high - tom) * yourreward) + high )
 //    array.set(myArray, 4, true) FLAG SO ONLY RUNS ONCE
     array.set(myArray, 8, true)
     array.set(myArray, 9, false)
@@ -290,15 +305,17 @@ if barstate.isconfirmed and bulltrade and not array.get(myArray, 4) and not arra
     prange = math.abs((LongLoc/vatr14) * 100)
     tradeshares = yourrisk/(high - tom)
     labelcolor = (prange > atrthresh) or (((tradeshares * high)/6) > tradingcapital) ? color.black : color.green
-    myLabel = label.new(size = size.large, x=bar_index, y = high, color=labelcolor, text= "Shares: " + str.tostring(tradeshares,"#") +'\n Buy STP: ' + str.tostring(high, "#.##") +  " \n Stop MKT: " + str.tostring(tom, "#.##") + "\n Take Profit: " + str.tostring(((high - tom) * yourreward) + high, "#.##" ) + "\n Profit ATR: " + str.tostring(prange,"#.##") + "%" + "\n Capital (6:1): " + str.tostring((tradeshares * high)/6,"#") , textcolor=color.white, style=label.style_label_down, yloc=yloc.abovebar)
+    myLabel = label.new(size = size.large, x=bar_index, y = high + (atr14/labeldistance) , color=labelcolor, text= "Shares: " + str.tostring(tradeshares,"#") +'\n Buy STP: ' + str.tostring(high, "#.##") +  " \n Stop MKT: " + str.tostring(tom, "#.##") + "\n Take Profit: " + str.tostring(((high - tom) * yourreward) + high, "#.##" ) + "\n Profit ATR: " + str.tostring(prange,"#.##") + "%" + "\n Capital (" + str.tostring(tradlev) + ":1): " + str.tostring((tradeshares * high)/tradlev,"#") , textcolor=color.white, style=label.style_label_down, yloc=yloc.price)
     myLabel
+    label.delete(myLabel[1])
     array.set(myArray1, 0, high) // set entry point
     array.set(myArray1, 2, ((high - tom) * yourreward) + high)// set target
     array.set(myArray1, 4, low < EMA10 ? low - (high - low): EMA10) // set stop  
     array.set(myArray, 17, true) // Alertcondition FLAG ON
     messagetxt1 := "Shares: " + str.tostring(tradeshares,"#") +'\n Buy STP: ' + str.tostring(high, "#.##") +  " \n Stop MKT: " + str.tostring(tom, "#.##") + "\n Take Profit: " + str.tostring(((high - tom) * yourreward) + high, "#.##" )
     array.set(myArrayTxt, 0, messagetxt1)
-    alert("10 EMA: Long Entry \n" + messagetxt1, alert.freq_once_per_bar)
+    alert(syminfo.tickerid + " \n 10 EMA Long Entry \n" + messagetxt1, alert.freq_once_per_bar)
+
 
 //table.cell(tbltrade, 0, 1,messagetxt1,  text_color=color.yellow)
 
@@ -320,17 +337,18 @@ if barstate.isconfirmed and beartrade and not array.get(myArray, 5) and not arra
     tradeshares = yourrisk/(tom-low)
 //    prange =  math.abs(((D_Close - (low - ((tom - low) * yourreward)))/vatr14) * 100)
     LongTarget = low - ((tom - low) * yourreward)
-    LongLoc = (D_Close >= O_Today) and (H_Today < D_Close) ? D_Close - LongTarget : H_Today - LongTarget
+    LongLoc = ((D_Close >= O_Today) and (H_Today < D_Close)) or ((D_Close <= O_Today) and (L_Today > D_Close)) ? D_Close - LongTarget : H_Today - LongTarget
     prange = math.abs((LongLoc/vatr14) * 100)
     labelcolor = (prange > atrthresh) or (((tradeshares * low)/6) > tradingcapital) ? color.black : color.red
-    myLabel = label.new(size = size.large,x=bar_index, y = high, color=labelcolor, text="Shares: " + str.tostring(tradeshares,"#") + '\n Sell STP: ' + str.tostring(low, "#.##") + "\n Take Profit: " + str.tostring(low - ((tom - low) * yourreward), "#.##") + " \n Stop MKT: " + str.tostring(tom, "#.##") + "\n Profit ATR: " + str.tostring(prange,"#.##") + "%" + "\n Capital (6:1): " + str.tostring((tradeshares * low)/6,"#") , textcolor=color.white, style=label.style_label_up, yloc=yloc.belowbar)
+    myLabel = label.new(size = size.large,x=bar_index, y = low - (atr14/labeldistance), color=labelcolor, text="Shares: " + str.tostring(tradeshares,"#") + '\n Sell STP: ' + str.tostring(low, "#.##") + "\n Take Profit: " + str.tostring(low - ((tom - low) * yourreward), "#.##") + " \n Stop MKT: " + str.tostring(tom, "#.##") + "\n Profit ATR: " + str.tostring(prange,"#.##") + "%" + "\n Capital (" + str.tostring(tradlev) + ":1): " + str.tostring((tradeshares * low)/tradlev,"#") , textcolor=color.white, style=label.style_label_up, yloc=yloc.price)
     myLabel
+    label.delete(myLabel[1])
     array.set(myArray1, 1, low)                                 // set entry
     array.set(myArray1, 3, low - ((tom - low) * yourreward) )  // set target
     array.set(myArray, 18, true) // Alertcondition FLAG ON
     messagetxt2 := "Shares: " + str.tostring(tradeshares,"#") + '\n Sell STP: ' + str.tostring(low, "#.##") + "\n Take Profit: " + str.tostring(low - ((tom - low) * yourreward), "#.##") + " \n Stop MKT: " + str.tostring(tom, "#.##")
     array.set(myArrayTxt, 1, messagetxt2)
-    alert("10 EMA: Short Entry \n" + messagetxt2, alert.freq_once_per_bar)
+    alert(syminfo.tickerid + " \n 10 EMA SHORT Entry \n" + messagetxt2, alert.freq_once_per_bar)
 //    alert("10 EMA: Short Entry", alert.freq_once_per_bar)
 
 

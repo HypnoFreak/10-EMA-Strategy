@@ -1,5 +1,5 @@
 // This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
-// © Going4Great Gareth is Awesome yay..
+// © Going4Great Gareth is Awesome yay...
 
 //By Gareth G
 
@@ -17,6 +17,7 @@ var table tbltrade = table.new(position.top_center, 3, 5, border_width=1, bgcolo
 yourrisk = input.int(defval = 100, title ="Your Risk $", group = "Trade Settings")
 tradingcapital = input.int(defval = 6000, title ="Your Trading Capital $", group = "Trade Settings")
 tradlev = input.int(defval = 6, title ="Your Trading Leverage eg. X:1",group = "Trade Settings", minval = 1, step = 1)
+tradepercent = input.int(defval = 65, title ="Max % Use of Capital On Trade",group = "Trade Settings", minval = 1, step = 1)
 yourreward = input.float(defval = 1.3, title ="Your Target (in R's)",group = "Trade Settings", step = 0.1, minval = 0.1)
 thresh = input.float(defval = 0.03, title ="EMA distance threshold in cents (Candle Wick - 10 EMA)",group = "Trade Settings" , minval = 0.00, maxval = 0.05, step = 0.01)
 atrthresh = input.int(defval = 86, title ="Your ATR Exclusion Threshold %",group = "Trade Settings" , minval = 1, maxval = 100, tooltip = "This sets the threshold at which you will get a black trade label indicating NO TRADE")
@@ -24,7 +25,10 @@ atrthresh = input.int(defval = 86, title ="Your ATR Exclusion Threshold %",group
 ema20bool = input.bool(defval = true,  title = "Enable 20 EMA On Chart" , group = "Plots")
 vwapbool = input.bool(defval = true,  title = "Enable VWAP On Chart" , group = "Plots")
 distance = input.int(defval=3, title = "Prev Day H/L Label Distance", group = "Plots")
-labeldistance = input.float(defval=0.4, title = "Label Distance from Candle", step = 0.1, minval = 0.1, group = "Plots", tooltip = "The lower the number the further away!")
+
+showonelabel = input.bool(defval = true,  title = "Show Only One Label" , group = "Labels/Candles")
+labeldistance = input.float(defval=0.4, title = "Label Distance from Candle", step = 0.1, minval = 0.1, group = "Labels/Candles", tooltip = "The lower the number the further away!")
+showallcandles = input.bool(defval = false,  title = "Show ALL Pullback Candles" , group = "Labels/Candles")
 
 alrtHours = '0930-0950'
 alrtHours2 = input.session(title='All day session', defval='0930-1400', group = "Trading Times - Don't Change")
@@ -37,6 +41,10 @@ alrtHours5 = input.session(title='After first 20 Min', defval='0948-1400', group
 
 isOborOs = false
 
+// Trade size max
+trademax = ((tradingcapital*tradlev) * (tradepercent/100))
+maxshares = str.tostring(trademax/close, "#")
+//table.cell(tbltrade, 0,2 , "MAX Shares: " + maxshares,  text_color=color.yellow, text_size = size.large )
 
 // Check if bar falls within alert time
 InSession(sess) =>
@@ -77,7 +85,7 @@ coloratr = atrpercent > 79 ? color.orange :color.yellow
 
 table.cell(tblDebug, 0, 3,"ATR (14): $" + str.tostring(vatr14,"#.##"),  text_color=color.yellow, text_size = size.large)
 table.cell(tblDebug, 0, 4,"Todays Range: $"  + str.tostring(vatr11,"#.##") + " (" + str.tostring(atrpercent,"#.#") + "%)",  text_color=coloratr, text_size = size.large)
-
+table.cell(tblDebug, 0, 5,"MAX Shares: " + maxshares,  text_color=color.yellow, text_size = size.large)
 
 // Get extended and regular EMA
 textend = ticker.new(syminfo.prefix, syminfo.ticker, session.regular)
@@ -110,28 +118,33 @@ var messagetxt1 = ""
 var messagetxt2 = ""
 
 //Check for 3 Bear/Bull Candles on the daily
-if D_Close > D_Open and C_2 > O_2 and  C_3 > O_3
-    table.cell(tblDebug, 0, 1,"3 Bull Daily Candles - Be Quick with exit or patient on entries",  text_color=color.red)
+//if D_Close > D_Open and C_2 > O_2 and  C_3 > O_3
+//    table.cell(tblDebug, 0, 1,"3 Bull Daily Candles - Be Quick with exit or patient on entries",  text_color=color.red)
 
-if D_Close < D_Open and C_2 < O_2 and  C_3 < O_3
-    table.cell(tblDebug, 0, 1,"3 Bear Daily Candles - Be Quick with exit or patient on entries",  text_color=color.red)
+//if D_Close < D_Open and C_2 < O_2 and  C_3 < O_3
+//    table.cell(tblDebug, 0, 1,"3 Bear Daily Candles - Be Quick with exit or patient on entries",  text_color=color.red)
     
-if not (D_Close < D_Open and C_2 < O_2 and  C_3 < O_3) and not (D_Close > D_Open and C_2 > O_2 and  C_3 > O_3)
-    table.cell(tblDebug, 0, 1,"", bgcolor=color.new(color.gray,100), text_color=color.red)
+//if not (D_Close < D_Open and C_2 < O_2 and  C_3 < O_3) and not (D_Close > D_Open and C_2 > O_2 and  C_3 > O_3)
+//    table.cell(tblDebug, 0, 1,"", bgcolor=color.new(color.gray,100), text_color=color.red)
 
-Dbars = D_Open < D_Close ? true : false // is previous bull candle
-DbarsToday = O_Today < C_Today ? true : false // current day bull
 
-if (Dbars and DbarsToday) and  (O_Today < D_Open and C_Today < D_Close) // if both bull candles and inside
-    table.cell(tblDebug, 0, 5,"Inside On Daily a ",  text_color=color.red)
-else if (not Dbars and DbarsToday) and (O_Today > D_Close and C_Today < D_Open)  // bear previous bull today
-    table.cell(tblDebug, 0, 5,"Inside On Daily b",  text_color=color.red)
-else if (not Dbars and not DbarsToday) and (O_Today < D_Open and C_Today > D_Close)  // bear previous bear today
-    table.cell(tblDebug, 0, 5,"Inside On Daily c ",  text_color=color.red)
-else if (Dbars and not DbarsToday) and (O_Today < D_Close and C_Today > D_Open)  // bull previous bear today
-    table.cell(tblDebug, 0, 5,"Inside On Daily d ",  text_color=color.red)
-else
-    table.cell(tblDebug, 0, 5," ",  text_color=color.yellow)    
+// CODE TO DETECT INSIDE CANDLES => NOT WORKING PROPERLY
+
+// Dbars = D_Open < D_Close ? true : false // is previous bull candle
+// DbarsToday = O_Today < C_Today ? true : false // current day bull
+
+//if (Dbars and DbarsToday) and  (O_Today < D_Open and C_Today < D_Close) // if both bull candles and inside
+//    table.cell(tblDebug, 0, 5,"Inside On Daily a ",  text_color=color.red)
+//else if (not Dbars and DbarsToday) and (O_Today > D_Close and C_Today < D_Open)  // bear previous bull today
+//    table.cell(tblDebug, 0, 5,"Inside On Daily b",  text_color=color.red)
+//else if (not Dbars and not DbarsToday) and (O_Today < D_Open and C_Today > D_Close)  // bear previous bear today
+//    table.cell(tblDebug, 0, 5,"Inside On Daily c ",  text_color=color.red)
+//else if (Dbars and not DbarsToday) and (O_Today < D_Close and C_Today > D_Open)  // bull previous bear today
+//    table.cell(tblDebug, 0, 5,"Inside On Daily d ",  text_color=color.red)
+//else
+//    table.cell(tblDebug, 0, 5," ",  text_color=color.yellow)    
+    
+// END DETECT INSIDE CANDLES
 
 // RSI
 rsiValue = ta.rsi(close, 14)
@@ -268,14 +281,14 @@ plotshape(beartrade, style = shape.triangledown, location = location.abovebar, c
 plotarrow(beartrade ? -1: na, colordown = color.red, maxheight = 10)
 
 //barColour = ((open > close) and (close > c1) and (close > c2)) and (array.get(myArray, 7) or opentoall or array.get(myArray, 10) ) ? color.purple :na
-barColour = ((open > close) and (close > c1) and (close > c2)) and ((gapabovebelow or opentoall or after20min ) )  and not off and not array.get(myArray, 8) ? color.purple :na
+barColour = ((open > close) and (close > c1) and (close > c2)) and ((gapabovebelow or opentoall or after20min ) )  and not off and (not array.get(myArray, 8) or showallcandles)? color.purple :na
 barcolor(color=barColour) 
 
 if (open > close) and (close > c1) and (close > c2) and alrtTrade2 and array.get(myArray, 6)
     array.set(myArray, 0, true)
 
 
-barColour3 = ((open < close) and (close < c1) and (close < c2)) and ((gapabovebelow or opentoall or after20min ))  and not off and not array.get(myArray, 9) ? color.yellow :na
+barColour3 = ((open < close) and (close < c1) and (close < c2)) and ((gapabovebelow or opentoall or after20min ))  and not off and (not array.get(myArray, 9) or showallcandles)? color.yellow :na
 //barColour3 = ((open < close) and (close < c1) and (close < c2)) and (array.get(myArray, 7) or opentoall or array.get(myArray, 10) ) ? color.yellow :na
 barcolor(color=barColour3) 
 
@@ -304,10 +317,13 @@ if barstate.isconfirmed and bulltrade and not array.get(myArray, 4) and not arra
     LongLoc = (D_Close <= O_Today) and (L_Today > D_Close) ? LongTarget - D_Close : LongTarget - L_Today
     prange = math.abs((LongLoc/vatr14) * 100)
     tradeshares = yourrisk/(high - tom)
-    labelcolor = (prange > atrthresh) or (((tradeshares * high)/6) > tradingcapital) ? color.black : color.green
-    myLabel = label.new(size = size.large, x=bar_index, y = high + (atr14/labeldistance) , color=labelcolor, text= "Shares: " + str.tostring(tradeshares,"#") +'\n Buy STP: ' + str.tostring(high, "#.##") +  " \n Stop MKT: " + str.tostring(tom, "#.##") + "\n Take Profit: " + str.tostring(((high - tom) * yourreward) + high, "#.##" ) + "\n Profit ATR: " + str.tostring(prange,"#.##") + "%" + "\n Capital (" + str.tostring(tradlev) + ":1): " + str.tostring((tradeshares * high)/tradlev,"#") , textcolor=color.white, style=label.style_label_down, yloc=yloc.price)
+    sharelabel = (((tradeshares * high)) > trademax) ? "TOO MANY SHARES: " : "Shares: "
+    labelcolor = (prange > atrthresh) or (((tradeshares * high)) > trademax) ? color.black : color.green
+    atrstring = (prange > atrthresh) ? "\n TOO HIGH ATR: " : "\n Profit ATR: " 
+    myLabel = label.new(size = size.large, x=bar_index, y = high + (atr14/labeldistance) , color=labelcolor, text= sharelabel + str.tostring(tradeshares,"#") +'\n Buy STP: ' + str.tostring(high, "#.##") +  " \n Stop MKT: " + str.tostring(tom, "#.##") + "\n Take Profit: " + str.tostring(((high - tom) * yourreward) + high, "#.##" ) + atrstring + str.tostring(prange,"#.##") + "%" + "\n Capital (" + str.tostring(tradlev) + ":1): " + str.tostring((tradeshares * high)/tradlev,"#") , textcolor=color.white, style=label.style_label_down, yloc=yloc.price)
     myLabel
-    label.delete(myLabel[1])
+    keeplabel = showonelabel ? myLabel[1] : na
+    label.delete(keeplabel)
     array.set(myArray1, 0, high) // set entry point
     array.set(myArray1, 2, ((high - tom) * yourreward) + high)// set target
     array.set(myArray1, 4, low < EMA10 ? low - (high - low): EMA10) // set stop  
@@ -339,10 +355,13 @@ if barstate.isconfirmed and beartrade and not array.get(myArray, 5) and not arra
     LongTarget = low - ((tom - low) * yourreward)
     LongLoc = ((D_Close >= O_Today) and (H_Today < D_Close)) or ((D_Close <= O_Today) and (L_Today > D_Close)) ? D_Close - LongTarget : H_Today - LongTarget
     prange = math.abs((LongLoc/vatr14) * 100)
-    labelcolor = (prange > atrthresh) or (((tradeshares * low)/6) > tradingcapital) ? color.black : color.red
-    myLabel = label.new(size = size.large,x=bar_index, y = low - (atr14/labeldistance), color=labelcolor, text="Shares: " + str.tostring(tradeshares,"#") + '\n Sell STP: ' + str.tostring(low, "#.##") + "\n Take Profit: " + str.tostring(low - ((tom - low) * yourreward), "#.##") + " \n Stop MKT: " + str.tostring(tom, "#.##") + "\n Profit ATR: " + str.tostring(prange,"#.##") + "%" + "\n Capital (" + str.tostring(tradlev) + ":1): " + str.tostring((tradeshares * low)/tradlev,"#") , textcolor=color.white, style=label.style_label_up, yloc=yloc.price)
+    atrstring = (prange > atrthresh) ? "\n TOO HIGH ATR: " : "\n Profit ATR: " 
+    labelcolor = (prange > atrthresh) or (((tradeshares * low)) > trademax)  ? color.black : color.red
+    sharelabel = (((tradeshares * low)) > trademax) ? "TOO MANY SHARES: " : "Shares: "
+    myLabel = label.new(size = size.large,x=bar_index, y = low - (atr14/labeldistance), color=labelcolor, text=sharelabel + str.tostring(tradeshares,"#") + '\n Sell STP: ' + str.tostring(low, "#.##") + "\n Take Profit: " + str.tostring(low - ((tom - low) * yourreward), "#.##") + " \n Stop MKT: " + str.tostring(tom, "#.##") + atrstring + str.tostring(prange,"#.##") + "%" + "\n Capital (" + str.tostring(tradlev) + ":1): " + str.tostring((tradeshares * low)/tradlev,"#") , textcolor=color.white, style=label.style_label_up, yloc=yloc.price)
     myLabel
-    label.delete(myLabel[1])
+    keeplabel = showonelabel ? myLabel[1] : na
+    label.delete(keeplabel)
     array.set(myArray1, 1, low)                                 // set entry
     array.set(myArray1, 3, low - ((tom - low) * yourreward) )  // set target
     array.set(myArray, 18, true) // Alertcondition FLAG ON
@@ -384,3 +403,4 @@ if WaitTradeBull > 0 and (ta.cross(low,array.get(myArray1, 4))) and array.get(my
 
 if (WaitTradeBear > 0 and WaitTradeBear <6) and ta.cross(close, array.get(myArray1, 1)) //crossing entry line
     array.set(myArray, 12, true)
+
